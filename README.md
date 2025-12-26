@@ -1,15 +1,61 @@
 
 _**🏥 Hospital Resource & Patient Management System (HRMS)**_
+
 This project implements a backend API for a smart hospital resource management and patient assignment system. The core feature is a Recommendation Engine that intelligently suggests the best hospital for a patient based on their health issue, required specialty, and real-time hospital capacity.
 
 _🌟 Key Features_
-RESTful API: Built using Django and Django Rest Framework (DRF).
 
-Intelligent Routing: Core recommendation logic ranks hospitals based on specialty match (priority) and capacity utilization (tie-breaker/secondary factor).
+*Hospital Registry: Manage hospital data, including location, total capacity, and medical specialties.
 
-Real-time Metrics: Hospitals display dynamic current_occupancy and the central Dashboard provides aggregated, real-time metrics.
+*Patient Tracking: Register patients and track their status from "Pending" to "Admitted" or "Discharged."
 
-Configurable Data: Patient issues are mapped to standard specialties via the IssueSpecialtyMap model, allowing easy data management via the Django Admin.
+*Real-time Occupancy: Automated calculation of hospital load based on active patient records.
+
+*Smart Recommendation Engine: Recommends the top 3 available hospitals based on:
+
+*Matching the patient's health issue to a hospital's specialty.
+
+*Verifying the hospital has at least one bed available.
+
+*Sorting by the most available space.
+
+*RESTful API: Built using Django and Django Rest Framework (DRF).
+
+*Intelligent Routing: Core recommendation logic ranks hospitals based on specialty match (priority) and capacity utilization (tie-breaker/secondary factor).
+
+*Configurable Data: Patient issues are mapped to standard specialties via the IssueSpecialtyMap model, allowing easy data management via the Django Admin.
+
+**_📋 API Endpoints_**
+
+Endpoint
+
+Method
+
+Description
+
+/api/hospitals/
+
+GET
+
+List all hospitals and occupancy
+
+/api/patients/
+
+POST
+
+Register a new patient
+
+/api/patients/{id}/assign/
+
+PATCH
+
+Admit a patient to a hospital
+
+/api/recommend/
+
+GET
+
+Query params: ?issue=cardiology
 
 _🚀 Setup and Installation_
 These instructions assume you have Python 3.x and pip installed.
@@ -47,9 +93,6 @@ For the API to function, you must manually create the following via the Admin in
  Hospitals: Create 2-3 hospitals and assign them the specialties they offer.
  Issue to Specialty Maps: Create mappings (e.g., Broken Leg $\rightarrow$ Orthopedics, Chest Pain $\rightarrow$ Cardiology).
 
-**📋 API Endpoints Reference**
-All API endpoints are prefixed with /api/v1/.
-CategoryMethodEndpointDescriptionHospitalsGET / POST/api/v1/hospitals/List all hospitals (with occupancy) or create a new one.SpecialtiesGET / POST/api/v1/specialties/List or manage standard medical specialties.PatientsGET / POST/api/v1/patients/List all patients or register a new patient (status=PENDING).AssignmentPATCH / PUT/api/v1/patients/{id}/assign/Assigns a patient to a hospital (requires hospital_id in body).RecommendationGET/api/v1/recommend/{issue_term}/CORE LOGIC: Get top 3 hospital recommendations.DashboardGET/api/v1/dashboard/Provides aggregated metrics (capacity, admitted patients).
 
 **💡 Core Logic Deep Dive**
 **1. Hospital Recommendation
@@ -97,6 +140,8 @@ def current_occupancy(self):
 *URL: http://127.0.0.1:8000/api/v1/patients/10/assign/
 
 *Body: {"hospital_id": 2}
+
+
 
 *Result: Patient status changes to 'IN', check-in date is set, and Hospital 2's occupancy increases.
 
