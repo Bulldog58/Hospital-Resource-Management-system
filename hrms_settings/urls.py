@@ -16,16 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from hospitals import views as hospital_views  # Import the dashboard view
+from hospitals.views import dashboard  # Import your dashboard view directly
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # 1. THE FIX: Explicitly set the home page to your dashboard function
+    path('', dashboard, name='dashboard'), 
 
-    # 1. The MAIN Dashboard (The beautiful HTML page)
-    # This must come BEFORE the API includes to ensure it's the default
-    path('', hospital_views.dashboard, name='dashboard'), 
-
-    # 2. The APIs (Grouped under api/v1/)
+    # 2. Keep your APIs grouped so they don't interfere with the UI
     path('api/v1/hospitals/', include('hospitals.urls')), 
     path('api/v1/patients/', include('patients.urls')),
     path('api/v1/core/', include('core_api.urls')), 
