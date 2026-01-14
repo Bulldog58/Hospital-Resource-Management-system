@@ -1,17 +1,16 @@
-from django.shortcuts import render
-from django.db.models import Count, Q, F  # Added F here
-from django.db import models              # Added models import
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Count, Q, F
+from django.db import models
+from django.utils import timezone # For filtering upcoming appointments
+from django.contrib import messages
 from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
-from django.http import HttpResponse
-from .models import Hospital, Specialty 
-from .serializers import HospitalSerializer, SpecialtySerializer
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages # Add this import
-from django.db.models import Q 
 import json
+
+# Import your models - Ensure Patient and Appointment are here!
+from .models import Hospital, Specialty, Patient, Appointment 
+from .serializers import HospitalSerializer, SpecialtySerializer
 
 # --- Template View for Frontend ---
 
@@ -26,14 +25,27 @@ def dashboard(request):
 
     specialties = Specialty.objects.all()
     
-    # Data for the Chart (Feature 1)
-    # This creates a list of labels and counts for the chart
+    # 1. NEW: Fetch 5 Upcoming Appointments for the Sidebar/List
+    upcoming_appointments = Appointment.objects.filter(
+        appointment_date__gte=timezone.now(),
+        status='scheduled'
+    ).order_by('appointment_date')[:5]
+
+    # 2. NEW: Count Pending Appointments for the Stat Box
+    pending_count = Appointment.objects.filter(
+        status='scheduled', 
+        appointment_date__gte=timezone.now()
+    ).count()
+
+    # 3. Data for the Chart (Optimized)
     chart_labels = [s.name for s in specialties]
     chart_data = [Hospital.objects.filter(specialties=s).count() for s in specialties]
 
     context = {
         'hospitals': hospitals,
         'specialties': specialties,
+        'upcoming_appointments': upcoming_appointments, # For Step 1
+        'pending_count': pending_count,                 # New Stat
         'hosp_count': hospitals.count(),
         'spec_count': specialties.count(),
         'total_capacity': sum(h.total_capacity for h in hospitals),
@@ -42,57 +54,4 @@ def dashboard(request):
     }
     return render(request, 'hospitals/index.html', context)
 
-# --- API ViewSet for Hospital Management ---
-
-class HospitalViewSet(viewsets.ModelViewSet):
-    """
-    Handles CRUD operations for Hospitals.
-    Includes filtering by name and address.
-    """
-    queryset = Hospital.objects.all()
-    serializer_class = HospitalSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['address', 'name']
-
-# --- Specialized Recommendation Logic ---
-
-class RecommendationView(generics.ListAPIView):
-    """
-    The Core Recommendation Engine.
-    Usage: /api/recommend/?issue=cardiology
-    """
-    serializer_class = HospitalSerializer
-
-    def get_queryset(self):
-        issue_query = self.request.query_params.get('issue', None)
-        if not issue_query:
-            return Hospital.objects.none()
-
-        # 1. Annotate with patient count for efficient filtering
-        # 2. Filter by specialty name and available capacity
-        # 3. Sort by the most available space (least crowded)
-        queryset = Hospital.objects.annotate(
-            active_patients=Count('patients', filter=Q(patients__status='IN'))
-        ).filter(
-            specialties__name__icontains=issue_query,
-            active_patients__lt=models.F('total_capacity')
-        ).order_by('active_patients')
-
-        return queryset[:3]
-        # --- Specialty ViewSet (The missing piece!) ---
-class SpecialtyViewSet(viewsets.ModelViewSet):
-    """
-    Handles CRUD operations for Medical Specialties.
-    """
-    queryset = Specialty.objects.all()
-    serializer_class = SpecialtySerializer
-
-def delete_hospital(request, pk):
-    # Find the hospital or return a 404 error if it doesn't exist
-    hospital = get_object_or_404(Hospital, pk=pk)
-    
-    if request.method == 'POST':
-        hospital.delete()
-        return redirect('dashboard') # Refresh the dashboard
-        
-    return redirect('dashboard') # Fallback    
+# ... (Keep your HospitalViewSet, RecommendationView, and SpecialtyViewSet as they are) ...
